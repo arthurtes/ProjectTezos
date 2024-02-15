@@ -2,30 +2,44 @@ import smartpy as sp
 
 @sp.module
 def main():
+    def updateDisplay(self):
+            self.data.toDisplay = ""
+            self.data.toDisplay += self.data.title + "\n\n"
+            for elt in self.data.fieldList.keys():
+                self.data.toDisplay += self.data.fieldList[elt]
+                self.data.toDisplay += (self.data.fieldList[elt]*100) / self.totalVote + "\n"
+                
     class Poll(sp.Contract):
-        def __init__(self, recipient, title, simpleAnswer, fieldList, anonymous):
-            self.data.recipient = recipient # Recipient of all collected money
+        def __init__(self, author, title, simpleAnswer, fieldList):
+            self.data.author = author
             self.data.title = title
-            self.data.anonymous = anonymous # To allow anonymous voting
             self.data.simpleAnswer = simpleAnswer
-            self.data.fieldList # A list of field from wich you can vote
-               
-        @sp.onchain_view()
-        def getDisplay(self):
-            """
-                Display current vote state
-            """
-            sp.result(42)
+            self.data.fieldList = fieldList # A list of field from wich you can vote
+            self.data.totalVote = 0
+            self.data.totalPeople = 0
+            self.data.toDisplay = ""
             
-            """assert sp.amount == self.data.price, "Wrong price"
-           owner_share = sp.split_tokens(self.data.price, abs(100 - self.data.author_rate), 100)
-           sp.send(self.data.owner, owner_share)
-           self.data.price += sp.split_tokens(sp.amount, 10, 100)
-           self.data.owner = sp.sender"""
+            updateDisplay(self)
+
+        @sp.entrypoint
+        def vote(self, *field):
+            assert sp.amount >= sp.tez(1), "Not enough"
+            assert len(field) != 1 and self.data.simpleAnswer == True, "Only one answer is possible"
+
+            if len(field) > 0:
+                self.data.totalPeople += 1
+
+            for opt in field:
+                assert self.data.fieldList.keys().contains(opt), "Field not recognized"
+                self.data.fieldList[opt] += 1
+                self.data.totalVote += 1
+
+            updateDisplay(self)
+            
     
         @sp.entrypoint
         def claim_author_rate(self):
-            assert sp.sender == self.data.recipient, " not your money "
+            assert sp.sender == self.data.author, " not your money "
             sp.send(self.data.author, sp.balance)
 
 @sp.add_test()
@@ -35,10 +49,26 @@ def test():
     bob = sp.test_account('Bob').address
     eve = sp.test_account('Eve').address
     
-    contract = main.Poll(eve, "Do you like Tezos", False, ["Yes", "No"], True)
+    contract = main.Poll(eve, "Do you like Tezos", False, ["Yes", "No"])
     scenario += contract
 
     sp.trace(contract.display())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
